@@ -1,4 +1,7 @@
 package com.TankGame;
 
-public class EnemyTank {
+public class EnemyTank extends Tank{
+    public EnemyTank(int x, int y) {
+        super(x, y);
+    }
 }
