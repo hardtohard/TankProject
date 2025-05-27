@@ -1,5 +1,7 @@
+import com.TankGame.TankGame01; // Import necessary class
+
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello, World!");
+        new TankGame01(); // Create an instance of the game
     }
 }
