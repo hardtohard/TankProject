@@ -4,15 +4,18 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.Vector;
+import java.util.Iterator;
+import java.awt.Rectangle; // Import Rectangle
 //import java.awt.event.KeyEvent;
 //this is the panel of the game
 //为了实现监听键盘事件，需要实现KeyListener
 //实现KeyListener创建按下按键快捷键是Ctrl+i
-public class MyPanel extends JPanel implements KeyListener {
+public class MyPanel extends JPanel implements KeyListener, Runnable { // Implement Runnable
     MyTank mytank=null;
     //采用vector 集合，存储多个坦克
     Vector<EnemyTank> enemyTanks=new Vector<>();
     int enemyTankSize=3;
+    Vector<Bullet> bullets = new Vector<>(); // Store bullets
 
 
     public MyPanel() {
@@ -23,10 +26,11 @@ public class MyPanel extends JPanel implements KeyListener {
         //初始化敌方坦克
         for(int i=0;i<enemyTankSize;i++) {
            EnemyTank enemyTank=new EnemyTank(100*(i+1),0);
-           enemyTank.setDirect(2);
+           // enemyTank.setDirect(2); // Removed to allow random initial direction from EnemyTank constructor
             enemyTanks.add(enemyTank);
 
         }
+        new Thread(this).start(); // Start the repaint thread
 
 
     }
@@ -40,6 +44,44 @@ public class MyPanel extends JPanel implements KeyListener {
         {
             EnemyTank enemyTank=enemyTanks.get(i);
             drawTank(enemyTank.getX(),enemyTank.getY(),g,enemyTank.getDirect(),1);
+        }
+
+        // Draw bullets
+        g.setColor(Color.WHITE); // Set bullet color
+        for (Bullet bullet : bullets) { // Iterate and draw remaining bullets
+            // Draw bullet as a small circle, adjusting for its center
+            g.fillOval(bullet.getX() - 2, bullet.getY() - 2, 4, 4);
+        }
+    }
+
+    private void checkCollisions() {
+        Iterator<Bullet> bulletIterator = bullets.iterator();
+        while (bulletIterator.hasNext()) {
+            Bullet bullet = bulletIterator.next();
+            // boolean bulletHit = false; // Not strictly needed if we break inner loop
+
+            Iterator<EnemyTank> enemyTankIterator = enemyTanks.iterator();
+            while (enemyTankIterator.hasNext()) {
+                EnemyTank enemyTank = enemyTankIterator.next();
+
+                // Define bullet rectangle
+                Rectangle bulletRect = new Rectangle(bullet.getX() - 2, bullet.getY() - 2, 4, 4);
+
+                // Define enemy tank rectangle based on its direction
+                Rectangle tankRect;
+                if (enemyTank.getDirect() == 0 || enemyTank.getDirect() == 2) { // Up or Down
+                    tankRect = new Rectangle(enemyTank.getX(), enemyTank.getY(), 40, 60);
+                } else { // Right or Left
+                    tankRect = new Rectangle(enemyTank.getX(), enemyTank.getY(), 60, 40);
+                }
+
+                if (bulletRect.intersects(tankRect)) {
+                    bulletIterator.remove(); // Remove the bullet
+                    enemyTankIterator.remove(); // Remove the enemy tank
+                    // bulletHit = true; // Mark bullet as hit
+                    break; // Bullet is gone, no need to check against other tanks for this bullet
+                }
+            }
         }
     }
     //画出坦克
@@ -111,13 +153,49 @@ public class MyPanel extends JPanel implements KeyListener {
         }else if(e.getKeyCode()==KeyEvent.VK_A){
             mytank.setDirect(3);
             mytank.moveLeft();
+        } else if (e.getKeyCode() == KeyEvent.VK_J || e.getKeyCode() == KeyEvent.VK_SPACE) { // Shoot key
+            Bullet bullet = mytank.shoot();
+            if (bullet != null) {
+                bullets.add(bullet);
+            }
         }
-        this.repaint();
+        // this.repaint(); // Removed as repaint is handled by the thread
 
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
 
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                Thread.sleep(50); // Adjust delay for bullet speed/smoothness
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            // Update bullets and remove if off-screen
+            Iterator<Bullet> bulletUpdaterIterator = bullets.iterator();
+            while (bulletUpdaterIterator.hasNext()) {
+                Bullet bullet = bulletUpdaterIterator.next();
+                bullet.update();
+                // Check for off-screen and remove
+                if (bullet.getX() < 0 || bullet.getX() > 1000 || bullet.getY() < 0 || bullet.getY() > 750) {
+                    bulletUpdaterIterator.remove();
+                }
+            }
+
+            // Update enemy tanks
+            for (EnemyTank enemyTank : enemyTanks) {
+                enemyTank.update();
+            }
+
+            checkCollisions(); // Call the collision detection method
+
+            repaint();
+        }
     }
 }
